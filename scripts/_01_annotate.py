@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import sklearn
+import matplotlib.pyplot as plt
 
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from sklearn.ensemble import RandomForestClassifier
@@ -107,7 +108,7 @@ for onehot in X_onehots:
 
 ###### Set up forest model #######
 
-X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X, y, test_size=0.2)
+X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X_concatenated, y, test_size=0.2)
 
 # Define the model
 rfmodel = RandomForestClassifier(n_estimators=100)
@@ -125,21 +126,28 @@ param_distributions = {
 search = RandomizedSearchCV(
     rfmodel,
     param_distributions=param_distributions,
-    n_iter=10,
+    n_iter=1,
     cv=5,
     random_state=42,
     n_jobs=-1
 )
 
 # Train the model with hyperparameter optimization
-search.fit(X_train, y)
+search.fit(X_train, y_train)
 
 # Get the best hyperparameters
 best_params = search.best_params_
 
 # Train the final model with the best hyperparameters
 rfmodel = RandomForestClassifier(**best_params)
-rfmodel.fit(X, y)
+rfmodel.fit(X_concatenated, y)
 
+predicted = rfmodel.predict(X_test)
 
 print('done')
+
+plt.scatter(y_test, predicted, alpha=0.5)
+plt.xlabel('True Values')
+plt.ylabel('Predicted Values')
+plt.title('Random Forest Model: True vs. Predicted Values')
+plt.show()

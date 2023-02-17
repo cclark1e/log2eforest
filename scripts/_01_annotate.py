@@ -128,11 +128,7 @@ for seq in X:
     X_onehots.append(X_onehot)
 X_onehots = np.array(X_onehots)
 X_onehots = X_onehots.astype(float)
-if os.path.isfile('../data/X_annotated.npy') == False:
-    X_annotated = annotate_residues(X)
-    np.save('../data/X_annotated.npy', X_annotated)
-else:
-    X_annotated = np.load('../data/X_annotated.npy')
+X_annotated = annotate_residues(X)
 
 X_concatenated = []
 n = 0

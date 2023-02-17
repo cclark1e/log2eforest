@@ -119,6 +119,7 @@ y = np.array(y)
 
 
 X_onehots = []
+print('getting onehots...')
 for seq in X:
     X_onehot = peptide_to_onehot_list(seq)
     X_onehots.append(X_onehot)
@@ -148,8 +149,8 @@ rfmodel = RandomForestClassifier(n_estimators=100)
 
 # Define the hyperparameters to optimize
 param_distributions = {
-    'n_estimators': randint(10, 1000),
-    'max_depth': randint(2, 100),
+    'n_estimators': randint(100, 2000),
+    'max_depth': randint(2, 200),
     'min_samples_split': randint(2, 20),
     'min_samples_leaf': randint(1, 20),
     'max_features': ['sqrt', 'log2'],
@@ -164,7 +165,9 @@ search = RandomizedSearchCV(
     param_distributions=param_distributions,
     n_iter=optruncount,
     cv=5,
-    n_jobs=-1
+    n_jobs=-1,
+    scoring='f1',
+    verbose = 2
 )
 
 # Train the model with hyperparameter optimization
@@ -190,6 +193,18 @@ plt.ylabel('Actual')
 plt.savefig(f'../data/{dt_string}.png')
 
 print(f"DT_STRING: {dt_string}")
+tn = cm[0,0]
+fp = cm[1,0]
+fn = cm[0,1]
+tp = cm[1,1]
+print(f'true positives: {tp}')
+print(f'true negatives: {tn}')
+print(f'false posities: {fp}')
+print(f'false negatives: {fn}')
+
+print(f'optruncount: {optruncount}')
+print('best_params:')
+print(best_params)
 
 #################################
 ###### Save Model + Params ######

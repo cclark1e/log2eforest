@@ -22,10 +22,6 @@ if len(sys.argv) > 1:
     file_to_load = args[0]
     chemo = args[1]
     optruncount = int(args[2])
-else:
-    file_to_load = '../data/collatedenrichment.csv'
-    chemo = 'all'
-    optruncount = 1
 
 now = datetime.now()
 dt_string = now.strftime("%d-%m-%Y_%H-%M-%S")

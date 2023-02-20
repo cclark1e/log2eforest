@@ -149,10 +149,10 @@ rfmodel = RandomForestClassifier(n_estimators=100)
 
 # Define the hyperparameters to optimize
 param_distributions = {
-    'n_estimators': randint(100, 5000),
-    'max_depth': randint(2, 500),
-    'min_samples_split': randint(2, 40),
-    'min_samples_leaf': randint(1, 40),
+    'n_estimators': randint(100, 1000),
+    'max_depth': randint(2, 450),
+    'min_samples_split': randint(2, 20),
+    'min_samples_leaf': randint(1, 20),
     'max_features': ['sqrt'],
     'criterion': ['gini', 'entropy'],
     'bootstrap': [True, False],

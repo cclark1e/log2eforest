@@ -149,11 +149,11 @@ rfmodel = RandomForestClassifier(n_estimators=100)
 
 # Define the hyperparameters to optimize
 param_distributions = {
-    'n_estimators': randint(100, 2000),
-    'max_depth': randint(2, 200),
-    'min_samples_split': randint(2, 20),
-    'min_samples_leaf': randint(1, 20),
-    'max_features': ['sqrt', 'log2'],
+    'n_estimators': randint(100, 5000),
+    'max_depth': randint(2, 500),
+    'min_samples_split': randint(2, 40),
+    'min_samples_leaf': randint(1, 40),
+    'max_features': ['sqrt'],
     'criterion': ['gini', 'entropy'],
     'bootstrap': [True, False],
     'class_weight': [None, 'balanced', 'balanced_subsample']
@@ -167,7 +167,7 @@ search = RandomizedSearchCV(
     cv=5,
     n_jobs=-1,
     scoring='f1',
-    verbose = 2
+    verbose = 10
 )
 
 # Train the model with hyperparameter optimization
@@ -193,6 +193,7 @@ plt.ylabel('Actual')
 plt.savefig(f'../data/{dt_string}.png')
 
 print(f"DT_STRING: {dt_string}")
+print(f"chemo: {chemo}")
 tn = cm[0,0]
 fp = cm[1,0]
 fn = cm[0,1]

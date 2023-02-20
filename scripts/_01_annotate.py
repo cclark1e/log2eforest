@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import pickle
 import sklearn
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -104,11 +105,13 @@ df = pd.read_csv(file_to_load, sep='\t')
 # How to handle missing chemokines? Add 'None' for now and then count and assess.
 
 unique_chemokines = df['selecting.chemokine'].unique()
-print(f'CHEMOKINE ORDER: {unique_chemokines}')
 unique_peptides = df['peptide'].unique()
+print(f'CHEMOKINE ORDER: {unique_chemokines}')
 
-if os.path.exists('../data/dfsorted.csv'):
-    dfsorted = pd.read_csv(file_to_load, sep='\t')
+if os.path.exists('../data/dfsorted.pickle'):
+    with open('../data/dfsorted.pickle', 'rb') as f:
+        dfsorted = pickle.load(f)
+    # dfsorted = pd.read_csv('../data/dfsorted.csv', sep='\t')
 else:
     dfsorted = pd.DataFrame(columns=['peptide', 'log2E'])
     n = 0
@@ -130,8 +133,9 @@ else:
         toadd = pd.DataFrame(dict)
         dfsorted = pd.concat([dfsorted, toadd])
         n += 1
-    print(dfsorted.head())
-    dfsorted.to_csv('../data/dfsorted.csv', sep='\t')
+    dfsorted_bytes = pickle.dumps(dfsorted)
+    with open('../data/dfsorted.pickle', 'wb') as f:
+        f.write(dfsorted_bytes)
     print('finished assigning multiple log2es to single peptides')
 
 if chemo == "cc":

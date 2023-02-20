@@ -12,19 +12,18 @@ from Bio.SeqUtils.ProtParam import ProteinAnalysis, ProtParamData
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.metrics import confusion_matrix
-
+from sklearn.metrics import classification_report, confusion_matrix, make_scorer, f1_score, accuracy_score, jaccard_score
+from sklearn.utils.class_weight import compute_sample_weight
 from scipy.stats import randint
 
 ###### GLOBALS #######
 
-sys.argv = ['poop', '../data/HD2XC_collated.csv', 'all', '1'] # DELETE WHEN MOVING TO CLUST
+sys.argv = ['poop', '../data/HD2XC_collated.csv', '1'] # DELETE WHEN MOVING TO CLUST
 
 if len(sys.argv) > 1:
     args = sys.argv[1:]
     file_to_load = args[0]
-    chemo = args[1]
-    optruncount = int(args[2])
+    optruncount = int(args[1])
 
 now = datetime.now()
 dt_string = now.strftime("%d-%m-%Y_%H-%M-%S")
@@ -138,25 +137,33 @@ else:
         f.write(dfsorted_bytes)
     print('finished assigning multiple log2es to single peptides')
 
-if chemo == "cc":
-    df = df.loc[(df['selecting.chemokine'] == 'CCL1_HUMAN') | (df['selecting.chemokine'] == 'CCL11_HUMAN') | (df['selecting.chemokine'] == 'CCL15_HUMAN') | (df['selecting.chemokine'] == 'CCL17_HUMAN') | (df['selecting.chemokine'] == 'CCL18_HUMAN') | (df['selecting.chemokine'] == 'CCL19_HUMAN') | (df['selecting.chemokine'] == 'CCL2_HUMAN') | (df['selecting.chemokine'] == 'CCL20_HUMAN') | (df['selecting.chemokine'] == 'CCL22_HUMAN') | (df['selecting.chemokine'] == 'CCL25_HUMAN') | (df['selecting.chemokine'] == 'CCL28_HUMAN') | (df['selecting.chemokine'] == 'CCL3_HUMAN') | (df['selecting.chemokine'] == 'CCL4_HUMAN') | (df['selecting.chemokine'] == 'CCL5_HUMAN') | (df['selecting.chemokine'] == 'CCL8_HUMAN')]
-elif chemo == "cx":
-    df = df.loc[(df['selecting.chemokine'] == 'CXCL5_HUMAN') | (df['selecting.chemokine'] == 'CXL10_HUMAN') | (df['selecting.chemokine'] == 'CXL11_HUMAN') | (df['selecting.chemokine'] == 'CXL13_HUMAN') | (df['selecting.chemokine'] == 'CXL14_HUMAN') | (df['selecting.chemokine'] == 'GROA_HUMAN') | (df['selecting.chemokine'] == 'IL8_HUMAN') | (df['selecting.chemokine'] == 'SDF1_HUMAN')]
-elif chemo != "all":
-        df = df.loc[df['selecting.chemokine'] == chemo]
+df = dfsorted
+
+'''
+# Check how many missing log2es are in dfsorted
+countnone = 0
+for k, v in df["log2E"].iteritems():
+    v = np.array(v)
+    print(v)
+    for val in v:
+        if not isinstance(val[0], float):
+            countnone +=1
+'''
 
 X = np.array(df.loc[:, ['peptide']])
-y = np.array(df.loc[:, ['log2E']])
 y = df['log2E'].tolist()
 newy = []
-for val in y:
-    if val >= 0:
-        newy.append(1)
-    else:
-        newy.append(0)
+for lst in y:
+    newlst = []
+    for val in lst:
+        if val.iloc[0] <= 0:
+            newlst.append(0)
+        else:
+            newlst.append(1)
+    newy.append(newlst)
+
 y = newy
 y = np.array(y)
-
 
 X_onehots = []
 print('getting onehots...')
@@ -179,6 +186,10 @@ for onehot in X_onehots:
 
 X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X_concatenated, y, test_size=0.2)
 
+pos_weight = 10
+neg_weight = 1
+class_weights = [{0: neg_weight, 1: pos_weight} for i in range(y_train.shape[1])]
+
 print(f'X_train len: {len(X_train)}')
 print(f'X_test len: {len(X_test)}')
 print(f'y_train len: {len(y_train)}')
@@ -193,20 +204,21 @@ param_distributions = {
     'max_depth': randint(2, 450),
     'min_samples_split': randint(2, 20),
     'min_samples_leaf': randint(1, 20),
-    'max_features': ['sqrt'],
+    'max_features': ['sqrt', 'log2'],
     'criterion': ['gini', 'entropy'],
     'bootstrap': [True, False],
-    'class_weight': [None, 'balanced', 'balanced_subsample']
+    'class_weight': [class_weights]
 }
 
 # Define the search strategy
+f1_scorer = make_scorer(f1_score, average='weighted')
 search = RandomizedSearchCV(
     rfmodel,
     param_distributions=param_distributions,
     n_iter=optruncount,
     cv=5,
     n_jobs=-1,
-    scoring='f1',
+    scoring=f1_scorer,
     verbose = 10
 )
 
@@ -227,23 +239,18 @@ rfmodel.fit(X_train, y_train)
 print("now predicting with best model...")
 predicted = rfmodel.predict(X_test)
 
-cm = confusion_matrix(y_test, predicted)
-sns.heatmap(cm, annot=True, cmap='Blues', fmt='g')
-plt.xlabel('Predicted')
-plt.ylabel('Actual')
+# Compute the F1 score and accuracy
+f1 = f1_score(y_test, predicted, average='weighted')
+
+# Plot the results
+fig, ax = plt.subplots()
+ax.bar(['F1 score'], [f1])
+ax.set_ylim(0, 1)
+plt.show()
+
 plt.savefig(f'../data/{dt_string}.png')
 
 print(f"DT_STRING: {dt_string}")
-print(f"chemo: {chemo}")
-tn = cm[0,0]
-fp = cm[1,0]
-fn = cm[0,1]
-tp = cm[1,1]
-print(f'true positives: {tp}')
-print(f'true negatives: {tn}')
-print(f'false posities: {fp}')
-print(f'false negatives: {fn}')
-
 print(f'CHEMOKINE ORDER: {unique_chemokines}')
 print(f'optruncount: {optruncount}')
 print('best_params:')

@@ -17,6 +17,8 @@ from scipy.stats import randint
 
 ###### GLOBALS #######
 
+sys.argv = ['poop', '../data/HD2XC_collated.csv', 'all', '1'] # DELETE WHEN MOVING TO CLUST
+
 if len(sys.argv) > 1:
     args = sys.argv[1:]
     file_to_load = args[0]
@@ -98,6 +100,40 @@ def annotate_residues(X):
 
 df = pd.read_csv(file_to_load, sep='\t')
 
+### Convert df so that 1 peptide has may log2e values, one for each chemokine
+# How to handle missing chemokines? Add 'None' for now and then count and assess.
+
+unique_chemokines = df['selecting.chemokine'].unique()
+print(f'CHEMOKINE ORDER: {unique_chemokines}')
+unique_peptides = df['peptide'].unique()
+
+if os.path.exists('../data/dfsorted.csv'):
+    dfsorted = pd.read_csv(file_to_load, sep='\t')
+else:
+    dfsorted = pd.DataFrame(columns=['peptide', 'log2E'])
+    n = 0
+    for unique_peptide in unique_peptides:
+        if n % 100 == 0:
+            print(f"{n} / {len(unique_peptides)} unique peptides assigned multiple log2es")
+        log2es = []
+        for unique_chemokine in unique_chemokines:
+            matchingrow = df.loc[((df['selecting.chemokine'] == unique_chemokine) & (df['peptide'] == unique_peptide))]
+            if matchingrow.empty:
+                log2es.append(None)
+                continue
+            else:
+                log2es.append(matchingrow['log2E'])
+        dict = {
+            'peptide': unique_peptide,
+            'log2E': [log2es]
+        }
+        toadd = pd.DataFrame(dict)
+        dfsorted = pd.concat([dfsorted, toadd])
+        n += 1
+    print(dfsorted.head())
+    dfsorted.to_csv('../data/dfsorted.csv', sep='\t')
+    print('finished assigning multiple log2es to single peptides')
+
 if chemo == "cc":
     df = df.loc[(df['selecting.chemokine'] == 'CCL1_HUMAN') | (df['selecting.chemokine'] == 'CCL11_HUMAN') | (df['selecting.chemokine'] == 'CCL15_HUMAN') | (df['selecting.chemokine'] == 'CCL17_HUMAN') | (df['selecting.chemokine'] == 'CCL18_HUMAN') | (df['selecting.chemokine'] == 'CCL19_HUMAN') | (df['selecting.chemokine'] == 'CCL2_HUMAN') | (df['selecting.chemokine'] == 'CCL20_HUMAN') | (df['selecting.chemokine'] == 'CCL22_HUMAN') | (df['selecting.chemokine'] == 'CCL25_HUMAN') | (df['selecting.chemokine'] == 'CCL28_HUMAN') | (df['selecting.chemokine'] == 'CCL3_HUMAN') | (df['selecting.chemokine'] == 'CCL4_HUMAN') | (df['selecting.chemokine'] == 'CCL5_HUMAN') | (df['selecting.chemokine'] == 'CCL8_HUMAN')]
 elif chemo == "cx":
@@ -110,7 +146,7 @@ y = np.array(df.loc[:, ['log2E']])
 y = df['log2E'].tolist()
 newy = []
 for val in y:
-    if val >= 0.5:
+    if val >= 0:
         newy.append(1)
     else:
         newy.append(0)
@@ -145,7 +181,7 @@ print(f'y_train len: {len(y_train)}')
 print(f'y_test len: {len(y_test)}')
 
 # Define the model
-rfmodel = RandomForestClassifier(n_estimators=100)
+rfmodel = RandomForestClassifier()
 
 # Define the hyperparameters to optimize
 param_distributions = {
@@ -184,6 +220,7 @@ rfmodel.fit(X_train, y_train)
 ###### Test forest model #######
 ################################
 
+print("now predicting with best model...")
 predicted = rfmodel.predict(X_test)
 
 cm = confusion_matrix(y_test, predicted)
@@ -203,6 +240,7 @@ print(f'true negatives: {tn}')
 print(f'false posities: {fp}')
 print(f'false negatives: {fn}')
 
+print(f'CHEMOKINE ORDER: {unique_chemokines}')
 print(f'optruncount: {optruncount}')
 print('best_params:')
 print(best_params)
